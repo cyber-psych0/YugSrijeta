@@ -5,6 +5,10 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    fatherName: {
+        type: String,
+        required: true
+    },
     phoneNumber: {
         type: String,
         required: true
@@ -30,9 +34,12 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    address: {
+    state: {
         type: String,
         required: true
+    },
+    address: {
+        type: String
     },
     profileImage: {
         type: String,
@@ -42,6 +49,10 @@ const userSchema = new mongoose.Schema({
         type: String
     },
     password: {
+        type: String,
+        required: true
+    },
+    regNo: {
         type: String,
         required: true
     }

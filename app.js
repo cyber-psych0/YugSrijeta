@@ -1,36 +1,31 @@
-const express = require('express')
+const express = require('express');
+const helmet = require("helmet");
+const cors = require('cors');
 const app = express();
 const bodyParser = require('body-parser');
-const mongoose = require('mongoose')
+const mongoose = require('mongoose');
 
 const userRouter = require('./api/routes/users');
+const uploadRouter = require('./api/routes/uploads');
+
+//handle CORS Policy to avoid CORS error
+app.use(cors());
+app.use(helmet());
 
 app.use('/uploads/profileImages/', express.static('uploads/profileImages'));
 app.use(bodyParser.urlencoded({extended: false}));
 app.use(bodyParser.json());
 
+
+
 const url = 'mongodb://localhost/yugsrijeta_users'
 mongoose.connect(url, {useNewUrlParser: true})
-// const con = mongoose.connection
-
-// con.on('open', function(){
-//     console.log('connected....')
-// })
-// app.use(express.json())
-
-//handle CORS Policy to avoid CORS error
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    if (req.method === 'OPTIONS') {
-        res.header('Access-Control-Allow-Methods', 'PUT, POST, PATCH, DELETE, GET');
-        return res.status(200).json({});
-    }
-    next();
-})
 
 //handle requests for /users endpoint
 app.use('/users', userRouter)
+
+//handle requests for /upload endpoint
+app.use('/upload',uploadRouter);
 
 //handle error if different route is sent
 app.use((req,res,next) => {

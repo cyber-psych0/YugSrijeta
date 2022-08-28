@@ -57,16 +57,15 @@ router.get('/:id', checkAuth, async (req, res) => {
             })
         }
         else{
+          const address = user.district + '(' + user.state + '), ' + 'PIN- ' + user.pinCode.toString();  
             res.status(200).json({
                 name: user.name,
+                fatherName: user.fatherName,
                 phoneNumber: user.phoneNumber,
                 adhaarNumber: user.adhaarNumber,
-                age: user.age,
-                gender: user.gender,
-                pinCode: user.pinCode,
-                district: user.district,
-                address: user.address,
-                profileImage: user.profileImage
+                address: address,
+                profileImage: user.profileImage,
+                regNo: user.regNo
             });
         }
     }
@@ -77,7 +76,8 @@ router.get('/:id', checkAuth, async (req, res) => {
     }
 })
 
-router.post('/signup',upload.single('profileImage'), async (req, res) => {
+router.post('/signup', async (req, res) => {
+  const total = await User.countDocuments();
     user.find({adhaarNumber: req.body.adhaarNumber})
     .exec()
     .then(user => {
@@ -88,46 +88,50 @@ router.post('/signup',upload.single('profileImage'), async (req, res) => {
       }
       else {
         bcrypt.hash(req.body.password, 10, (err, hash) => {
-            if (err) {
-                return res.status(500).json({
-                    error: err
+          if (err) {
+            return res.status(500).json({
+              error: err
+            });
+          }
+          else{
+            const num = '00000' + total.toString();
+            const regNum = req.body.district.toUpperCase().slice(0,4) +req.body.adhaarNumber.toString().slice(-4) + num.slice(-5);
+            const user = new User({
+              name: req.body.name,
+              fatherName: req.body.fatherName,
+              phoneNumber: req.body.phoneNumber,
+              adhaarNumber: req.body.adhaarNumber,
+              age: req.body.age,
+              gender: req.body.gender,
+              pinCode: req.body.pinCode,
+              district: req.body.district,
+              state: req.body.state,
+              address: req.body.address || '',
+              profileImage: req.body.profileImage,
+              regNo: regNum,
+              email: req.body.email || '',
+              password: hash
+            });
+            user
+              .save()
+              .then(result => {
+                const address = result.district + '(' + result.state + '), ' + 'PIN- ' + result.pinCode.toString();
+                res.status(200).json({
+                  name: result.name,
+                  fatherName: result.fatherName,
+                  phoneNumber: result.phoneNumber,
+                  adhaarNumber: result.adhaarNumber,
+                  address: address,
+                  profileImage: result.profileImage,
+                  regNo: result.regNo
+                })
+              })
+              .catch(err => {
+                res.status(500).json({
+                  error: err
                 });
-            }
-            else{
-                const user = new User({
-                    name: req.body.name,
-                    phoneNumber: req.body.phoneNumber,
-                    adhaarNumber: req.body.adhaarNumber,
-                    age: req.body.age,
-                    gender: req.body.gender,
-                    pinCode: req.body.pinCode,
-                    district: req.body.district,
-                    address: req.body.address,
-                    profileImage: req.file.path.replaceAll('\\','/'),
-                    email: req.body.email,
-                    password: hash
-                });
-                user
-                    .save()
-                    .then(result => {
-                        res.status(200).json({
-                            name: result.name,
-                            phoneNumber: result.phoneNumber,
-                            adhaarNumber: result.adhaarNumber,
-                            age: result.age,
-                            gender: result.gender,
-                            pinCode: result.pinCode,
-                            district: result.district,
-                            address: result.address,
-                            profileImage: result.profileImage
-                        })
-                    })
-                    .catch(err => {
-                        res.status(500).json({
-                            error: err
-                        });
-                    });
-            }
+              });
+          }
         });
       }
     });
