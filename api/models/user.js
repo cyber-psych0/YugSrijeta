@@ -13,13 +13,8 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    adhaarNumber: {
+    dob: {
         type: String,
-        required: true,
-        unique: true
-    },
-    age: {
-        type: Number,
         required: true
     },
     gender: {
@@ -54,6 +49,14 @@ const userSchema = new mongoose.Schema({
     },
     regNo: {
         type: String,
+        required: true
+    },
+    isApproved : {
+        type: String,
+        required: true
+    },
+    isAdmin : {
+        type: Boolean,
         required: true
     }
 })

@@ -6,36 +6,6 @@ const jwt = require("jsonwebtoken")
 const checkAuth = require('../middleware/check-auth')
 require('dotenv').config();
 
-const multer = require('multer');
-const user = require('../models/user');
-
-const storage = multer.diskStorage({
-    destination: function(req, file, cb) {
-        cb(null, './uploads/profileImages/');
-    },
-    filename: function(req, file, cb) {
-        cb(null,  Math.floor(10000 + Math.random() * 90000).toString() + file.originalname.replaceAll(' ',''));
-    }
-});
-
-const fileFilter = (req, file, cb) => {
-    if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/png' || file.mimetype === 'image/jpg') {
-        cb(null, true);
-    }
-    else {
-        cb(new Error('Only JPEG, JPG and PNG images are allowed.'), false);
-    }
-}
-
-const upload = multer({
-    storage: storage,
-    limits: {
-        fileSize: 1024*1024
-    },
-    fileFilter: fileFilter
-});
-
-
 router.get('/', async (req, res, next) => {
     try{
         const users = await User.find()
@@ -50,7 +20,7 @@ router.get('/', async (req, res, next) => {
 
 router.get('/:id', checkAuth, async (req, res) => {
     try{
-        const user = await User.findOne({"adhaarNumber": req.params.id})
+        const user = await User.findOne({"phoneNumber": req.params.id})
         if(!user){
             res.status(404).json({
                 error: 'No users found!'
@@ -62,10 +32,10 @@ router.get('/:id', checkAuth, async (req, res) => {
                 name: user.name,
                 fatherName: user.fatherName,
                 phoneNumber: user.phoneNumber,
-                adhaarNumber: user.adhaarNumber,
                 address: address,
                 profileImage: user.profileImage,
-                regNo: user.regNo
+                regNo: user.regNo,
+                dob: user.dob
             });
         }
     }
@@ -78,56 +48,97 @@ router.get('/:id', checkAuth, async (req, res) => {
 
 router.post('/signup', async (req, res) => {
   const total = await User.countDocuments();
-    user.find({adhaarNumber: req.body.adhaarNumber})
+    User.find({phoneNumber: req.body.phoneNumber})
     .exec()
     .then(user => {
       if (user.length >= 1) {
         return res.status(409).json({
-          message: "User with adhaar number alrready exists"
+          message: "User with mobile number already exists"
         });
       }
       else {
         bcrypt.hash(req.body.password, 10, (err, hash) => {
           if (err) {
             return res.status(500).json({
+              message: 'cannot create hash',
               error: err
             });
           }
           else{
             const num = '00000' + total.toString();
-            const regNum = req.body.district.toUpperCase().slice(0,4) +req.body.adhaarNumber.toString().slice(-4) + num.slice(-5);
-            const user = new User({
+            const stateCodes = {
+              "Andaman and Nicobar Islands": "AN",
+              "Andhra Pradesh": "AP",
+              "Arunachal Pradesh": "AR",
+              "Assam":"As",
+              "Bihar":"BR",
+              "Chandigarh":"CG",
+              "Chhattisgarh":"CH",
+              "Dadra and Nagar Haveli":"DN",
+              "Daman and Diu":"DD",
+              "Delhi":"DL",
+              "Goa":"GA",
+              "Gujarat":"GJ",
+              "Haryana":"HR",
+              "Himachal Pradesh":"HP",
+              "Jammu and Kashmir":"JK",
+              "Jharkhand":"JH",
+              "Karnataka":"KA",
+              "Kerala":"KL",
+              "Ladakh":"LA",
+              "Lakshadweep":"LD",
+              "Madhya Pradesh":"MP",
+              "Maharashtra":"MH",
+              "Manipur":"MN",
+              "Meghalaya": "ML",
+              "Mizoram":"MZ",
+              "Nagaland": "NL",
+              "Odisha":"OR",
+              "Puducherry":"PY",
+              "Punjab":"PB",
+              "Rajasthan":"RJ",
+              "Sikkim":"SK",
+              "Tamil Nadu":"TN",
+              "Telangana":"TS",
+              "Tripura":"TR",
+              "Uttar Pradesh":"UP",
+              "Uttarakhand":"UK",
+              "West Bengal":"WB"
+          };
+          const regNum = stateCodes[req.body.state] + '-' + req.body.district.toUpperCase().slice(0,4)  + '-' + num.slice(-5);
+            const myUser = new User({
               name: req.body.name,
               fatherName: req.body.fatherName,
               phoneNumber: req.body.phoneNumber,
-              adhaarNumber: req.body.adhaarNumber,
-              age: req.body.age,
+              dob: req.body.dob,
               gender: req.body.gender,
               pinCode: req.body.pinCode,
               district: req.body.district,
               state: req.body.state,
-              address: req.body.address || '',
               profileImage: req.body.profileImage,
               regNo: regNum,
-              email: req.body.email || '',
-              password: hash
+              password: hash,
+              isApproved: 'pending',
+              isAdmin: false,
+              address: '',
+              email: ''
             });
-            user
+            if(req.body.address) {
+              myUser.address = req.body.address;
+            }
+            if(req.body.email) {
+              myUser.email = req.body.email;
+            }
+            myUser
               .save()
               .then(result => {
-                const address = result.district + '(' + result.state + '), ' + 'PIN- ' + result.pinCode.toString();
                 res.status(200).json({
-                  name: result.name,
-                  fatherName: result.fatherName,
-                  phoneNumber: result.phoneNumber,
-                  adhaarNumber: result.adhaarNumber,
-                  address: address,
-                  profileImage: result.profileImage,
-                  regNo: result.regNo
+                  message: "User Registered Successfully"
                 })
               })
               .catch(err => {
                 res.status(500).json({
+                  message: 'error while saving user',
                   error: err
                 });
               });
@@ -138,7 +149,7 @@ router.post('/signup', async (req, res) => {
 });
 
 router.post("/login", (req, res, next) => {
-    User.find({ adhaarNumber: req.body.adhaarNumber })
+    User.find({ phoneNumber: req.body.phoneNumber })
       .exec()
       .then(user => {
         if (user.length < 1) {
@@ -155,7 +166,7 @@ router.post("/login", (req, res, next) => {
           if (result) {
             const token = jwt.sign(
               {
-                adhaarNumber: user[0].adhaarNumber,
+                phoneNumber: user[0].phoneNumber,
                 userId: user[0]._id
               },
               process.env.JWT_KEY,
@@ -165,7 +176,9 @@ router.post("/login", (req, res, next) => {
             );
             return res.status(200).json({
               message: "Auth successful",
-              token: token
+              token: token,
+              isApproved: user[0].isApproved,
+              isAdmin: user[0].isAdmin
             });
           }
           res.status(401).json({
@@ -180,6 +193,64 @@ router.post("/login", (req, res, next) => {
         });
       });
 });
-  
+
+router.get('/approve/:id', async (req, res) => {
+  try{
+      const user = await User.findOne({"phoneNumber": req.params.id});
+      if(!user){
+          res.status(404).json({
+              error: 'No users found!'
+          })
+      }
+      else{
+        const query = { phoneNumber: user.phoneNumber },
+          newvalues = { $set: { isApproved: "approved" } };
+        User.updateOne(query, newvalues, function(err, resp) {
+          if(err) {
+            throw err;
+          }
+          res.status(200).json({
+            message: "User Approved!"
+          });
+        });
+      }
+  }
+  catch(err) {
+      res.status(500).json({
+          message: 'Failed to approve user',
+          error: err
+      })
+  }
+});
+
+router.get('/reject/:id', async (req, res) => {
+  try{
+      const user = await User.findOne({"phoneNumber": req.params.id})
+      if(!user){
+          res.status(404).json({
+              error: 'No users found!'
+          })
+      }
+      else{
+        const query = { phoneNumber: user.phoneNumber },
+          newvalues = { $set: { isApproved: "rejected" } };
+        User.updateOne(query, newvalues, function(err, resp) {
+          if(err) {
+            throw err;
+          }
+          res.status(200).json({
+            message: "User Rejected!"
+          });
+        });
+      }
+  }
+  catch(err) {
+      res.status(500).json({
+          message: 'Failed to reject user',
+          error: err
+      })
+  }
+})
+
 
 module.exports = router
